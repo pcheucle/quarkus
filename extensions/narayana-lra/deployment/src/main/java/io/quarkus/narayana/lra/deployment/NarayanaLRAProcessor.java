@@ -16,7 +16,8 @@ import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
 import org.jboss.jandex.IndexView;
 
-import io.narayana.lra.client.internal.proxy.ParticipantProxyResource;
+import io.narayana.lra.client.NarayanaLRAClient;
+import io.narayana.lra.client.internal.proxy.ProxyService;
 import io.narayana.lra.client.internal.proxy.nonjaxrs.jandex.DotNames;
 import io.quarkus.arc.deployment.AdditionalBeanBuildItem;
 import io.quarkus.arc.deployment.BeanArchiveIndexBuildItem;
@@ -30,6 +31,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.narayana.lra.runtime.LRAConfiguration;
 import io.quarkus.narayana.lra.runtime.NarayanaLRAProducers;
 import io.quarkus.narayana.lra.runtime.NarayanaLRARecorder;
+import io.quarkus.smallrye.openapi.deployment.spi.AddToOpenAPIDefinitionBuildItem;
 
 class NarayanaLRAProcessor {
 
@@ -147,10 +149,19 @@ class NarayanaLRAProcessor {
 
     @BuildStep
     void registerBeans(BuildProducer<AdditionalBeanBuildItem> additionalBeans) {
-        additionalBeans.produce(AdditionalBeanBuildItem.builder()
-                .setUnremovable()
-                .addBeanClass(ParticipantProxyResource.class)
-                .build());
         additionalBeans.produce(new AdditionalBeanBuildItem(NarayanaLRAProducers.class));
+        additionalBeans.produce(new AdditionalBeanBuildItem(ProxyService.class));
+        additionalBeans.produce(new AdditionalBeanBuildItem(NarayanaLRAClient.class));
     }
+
+    @BuildStep
+    public void filterOpenAPIEndpoint(BuildProducer<AddToOpenAPIDefinitionBuildItem> openAPIProducer,
+            Capabilities capabilities, LRABuildTimeConfiguration lraBuildTimeConfig) {
+
+        if (capabilities.isPresent(Capability.SMALLRYE_OPENAPI)) {
+            NarayanaLraOpenAPIFilter lraOpenAPIFilter = new NarayanaLraOpenAPIFilter(lraBuildTimeConfig.openapiIncluded);
+            openAPIProducer.produce(new AddToOpenAPIDefinitionBuildItem(lraOpenAPIFilter));
+        }
+    }
+
 }
